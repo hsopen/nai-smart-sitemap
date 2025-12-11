@@ -7,8 +7,8 @@ import { TaskConfig } from './types.js';
 import { RequestQueue } from 'crawlee';
 import { generateSitemap } from './sitemapGenerator.js';
 
-// 设置环境变量以使用内存存储而不是文件系统存储
-process.env.CRAWLEE_STORAGE_DIR = '';
+// 设置环境变量以将存储目录移到storage文件夹而不是根目录
+process.env.CRAWLEE_STORAGE_DIR = path.join(process.cwd(), 'storage');
 
 let currentCrawlers: ProductCrawler[] = [];
 
