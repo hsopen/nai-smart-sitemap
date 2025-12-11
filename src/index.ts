@@ -5,9 +5,10 @@ import { ConfigManager } from './configManager.js';
 import { ProductCrawler } from './crawler.js';
 import { TaskConfig } from './types.js';
 import { RequestQueue } from 'crawlee';
+import { generateSitemap } from './sitemapGenerator.js';
 
-// 设置环境变量以将存储目录移到storage文件夹而不是根目录
-process.env.CRAWLEE_STORAGE_DIR = 'storage';
+// 设置环境变量以使用内存存储而不是文件系统存储
+process.env.CRAWLEE_STORAGE_DIR = '';
 
 let currentCrawler: any = null;
 
@@ -20,6 +21,7 @@ async function main() {
   console.log('请选择操作:');
   console.log('1. 启动任务');
   console.log('2. 创建任务');
+  console.log('3. 生成网站地图');
 
   rl.question('请输入选项编号: ', async (answer: string) => {
     const choice = parseInt(answer);
@@ -28,6 +30,9 @@ async function main() {
       await startTask(rl);
     } else if (choice === 2) {
       await createTask(rl);
+    } else if (choice === 3) {
+      rl.close();
+      await generateSitemap();
     } else {
       console.log('无效的选项。');
       rl.close();

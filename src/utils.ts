@@ -39,40 +39,29 @@ export class Utils {
   }
 
   // 将HTML内容保存到文件
-  static saveHtmlToFile(html: string, url: string, outputPath: string, index: number): boolean {
+  static saveHtmlToFile(html: string, url: string, outputDir: string, index: number): boolean {
     try {
-      // 如果目录不存在则创建
-      if (!fs.existsSync(outputPath)) {
-        fs.mkdirSync(outputPath, { recursive: true });
+      // 确保输出目录存在
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
       }
 
-      // 添加包含原始URL的注释
-      const contentWithComment = `<!-- Original URL: ${url} -->\n${html}`;
-      
-      // 使用零填充的文件名
+      // 在HTML中添加原始URL的元标签，以便后续生成网站地图时使用
+      const htmlWithMeta = html.replace(
+        '<head>',
+        `<head>\n  <meta name="original-url" content="${url}">`
+      );
+
+      // 生成文件名（六位数字，前导零填充）
       const fileName = `${index.toString().padStart(7, '0')}.txt`;
-      const filePath = path.join(outputPath, fileName);
-      
-      // 写入文件
-      fs.writeFileSync(filePath, contentWithComment);
-      
-      // 检查文件大小
-      const stats = fs.statSync(filePath);
-      if (stats.size < 50 * 1024) { // 小于50KB
-        fs.unlinkSync(filePath); // 删除文件
-        return false;
-      }
-      
+      const filePath = path.join(outputDir, fileName);
+
+      // 保存文件
+      fs.writeFileSync(filePath, htmlWithMeta);
       return true;
     } catch (error) {
-      console.error(`保存URL ${url} 的文件时出错:`, error);
+      console.error(`保存文件失败 ${url}:`, error);
       return false;
     }
-  }
-
-  // 从列表中获取随机代理
-  static getRandomProxy(proxies: string[]): string | undefined {
-    if (proxies.length === 0) return undefined;
-    return proxies[Math.floor(Math.random() * proxies.length)];
   }
 }
