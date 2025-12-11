@@ -1,0 +1,12 @@
+{
+  "id": "www.madison-reed.com",
+  "maxProducts": 1000,
+  "startUrl": "https://www.madison-reed.com/product/espresso",
+  "threads": 5,
+  "proxies": [],
+  "selectors": [
+    "h2.brand-color-1.kapra-neue.upper.xs-f-xlarge.md-f-xgrande.lg-f-xxgrande.xl-f-xxxgrande.max-at-tweak"
+  ],
+  "mode": "cheerio",
+  "outputDir": "www.madison-reed.com"
+}
