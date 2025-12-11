@@ -17,7 +17,7 @@ async function generateSitemap() {
 
     try {
       if (choice === 1) {
-        await generateAllSitemaps();
+        await generateAllSitemaps(rl);
       } else if (choice === 2) {
         rl.question('请输入站点域名 (例如: www.madison-reed.com): ', async (domain: string) => {
           if (domain.trim()) {
@@ -30,19 +30,20 @@ async function generateSitemap() {
         return;
       } else {
         console.log('无效的选项。');
+        rl.close();
       }
     } catch (error) {
       console.error('生成网站地图时出错:', error);
-    } finally {
       rl.close();
     }
   });
 }
 
-async function generateAllSitemaps() {
+async function generateAllSitemaps(rl: any) {
   const outputDir = 'output';
   if (!fs.existsSync(outputDir)) {
     console.log('output目录不存在。');
+    rl.close();
     return;
   }
 
@@ -52,6 +53,7 @@ async function generateAllSitemaps() {
 
   if (sites.length === 0) {
     console.log('未找到任何站点目录。');
+    rl.close();
     return;
   }
 
@@ -66,6 +68,7 @@ async function generateAllSitemaps() {
   }
 
   console.log('所有网站地图生成完成。');
+  rl.close();
 }
 
 async function generateSiteSitemap(domain: string) {
@@ -133,7 +136,6 @@ function generateSitemapXml(urls: string[]): string {
   return xmlHeader + xmlContent + xmlFooter;
 }
 
-// 如果直接运行此脚本，则执行主函数
 // 使用ES模块兼容的方式检查是否为主模块
 const isMainModule = process.argv[1] && process.argv[1] === import.meta.filename;
 
