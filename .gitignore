@@ -1,2 +1,5 @@
 node_modules
 dist
+tasksConfig
+storage
+output

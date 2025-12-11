@@ -6,7 +6,6 @@ export interface TaskConfig {
   proxies: string[];
   selectors: string[];
   mode: 'cheerio' | 'patchright';
-  outputDir?: string;
 }
 
 export interface CrawlResult {

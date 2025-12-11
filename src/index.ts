@@ -6,8 +6,10 @@ import { ProductCrawler } from './crawler.js';
 import { TaskConfig } from './types.js';
 import { RequestQueue } from 'crawlee';
 
-// 设置环境变量以使用内存存储而不是文件系统存储
-process.env.CRAWLEE_STORAGE_DIR = path.join(process.cwd(), 'storage');
+// 设置环境变量以将存储目录移到storage文件夹而不是根目录
+process.env.CRAWLEE_STORAGE_DIR = 'storage';
+
+let currentCrawler: any = null;
 
 async function main() {
   const rl = createInterface({
@@ -62,12 +64,25 @@ async function startTask(rl: any) {
     console.log(`正在启动任务: ${selectedConfig.id}`);
 
     const crawler = new ProductCrawler(selectedConfig);
+    currentCrawler = crawler;
+    
+    // 处理 Ctrl+C 信号
+    const sigintHandler = () => {
+      console.log('\n接收到中断信号，正在停止...');
+      // 这里可以添加更具体的停止逻辑
+      process.exit(0);
+    };
+    
+    process.on('SIGINT', sigintHandler);
+
     try {
       await crawler.crawl();
       console.log('爬取已完成。');
     } catch (error) {
       console.error('爬取出错:', error);
     } finally {
+      process.removeListener('SIGINT', sigintHandler);
+      currentCrawler = null;
       rl.close();
     }
   });
@@ -78,11 +93,16 @@ async function createTask(rl: any) {
     try {
       const url = new URL(urlAnswer);
       const taskId = url.hostname;
-      const configPath = path.join('tasksConfig', `${taskId}.json`);
+      // 修改配置文件路径，将其放在对应的文件夹内
+      const taskDir = path.join('tasksConfig', taskId);
+      const configPath = path.join(taskDir, `${taskId}.json`);
 
       if (fs.existsSync(configPath)) {
         console.log(`任务 ${taskId} 已存在。`);
       } else {
+        // 创建任务文件夹
+        fs.mkdirSync(taskDir, { recursive: true });
+        
         const defaultConfig: TaskConfig = {
           id: taskId,
           maxProducts: 1000,
