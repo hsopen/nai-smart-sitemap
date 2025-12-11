@@ -134,7 +134,10 @@ function generateSitemapXml(urls: string[]): string {
 }
 
 // 如果直接运行此脚本，则执行主函数
-if (require.main === module) {
+// 使用ES模块兼容的方式检查是否为主模块
+const isMainModule = process.argv[1] && process.argv[1] === import.meta.filename;
+
+if (isMainModule) {
   generateSitemap().catch(console.error);
 }
 
