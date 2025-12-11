@@ -152,7 +152,7 @@ export class ProductCrawler {
       crawler = new PlaywrightCrawler({
         requestQueue: this.requestQueue!,
         maxConcurrency: this.config.threads,
-        maxRequestRetries: 3,
+        maxRequestRetries: 2, // 减少重试次数
         launchContext: {
           launcher: patchright.chromium, // 使用chromium而不是default
           launchOptions: {
@@ -180,11 +180,50 @@ export class ProductCrawler {
           this.visitedUrls.add(normalizedUrl);
           this.urlManager.addVisitedUrl(normalizedUrl);
 
-          // 等待页面加载完成
-          await page.waitForLoadState('networkidle');
-          
-          // 尝试滚动到页面底部以触发懒加载内容
           try {
+            // 等待页面加载完成，但设置更合理的超时时间
+            await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+          } catch (err) {
+            console.log(`等待页面加载超时 ${request.url}:`, err);
+            // 即使超时也继续处理页面
+          }
+
+          try {
+            // 尝试关闭可能的弹窗或悬浮窗
+            await page.evaluate(() => {
+              // 尝试关闭常见的弹窗元素
+              const closeSelectors = [
+                'button[class*="close"]',
+                'button[class*="dismiss"]',
+                '.modal-close',
+                '.popup-close',
+                '[aria-label="Close"]',
+                '.close-modal',
+                '.overlay-close'
+              ];
+              
+              for (const selector of closeSelectors) {
+                const closeButton = document.querySelector(selector);
+                if (closeButton) {
+                  (closeButton as HTMLElement).click();
+                  break;
+                }
+              }
+              
+              // 尝试隐藏可能干扰滚动的浮动元素
+              const floatingElements = document.querySelectorAll('div[class*="popup"], div[class*="modal"], div[class*="overlay"], div[class*="float"]');
+              floatingElements.forEach(el => {
+                if (el instanceof HTMLElement) {
+                  el.style.display = 'none';
+                }
+              });
+            });
+          } catch (err) {
+            console.log(`尝试关闭弹窗时出错 ${request.url}:`, err);
+          }
+
+          try {
+            // 尝试滚动到页面底部以触发懒加载内容
             await page.evaluate(() => {
               return new Promise((resolve) => {
                 let totalHeight = 0;
@@ -201,13 +240,15 @@ export class ProductCrawler {
                   }
                 }, 100);
               });
-            });
+            }, { timeout: 10000 }); // 设置滚动超时
           } catch (err) {
-            console.log('页面滚动到底部时出错:', err);
+            console.log(`页面滚动到底部时出错 ${request.url}:`, err);
           }
 
           // 获取页面内容
           const html = await page.content();
+          
+          // 使用Cheerio解析HTML
           const $ = load(html);
           
           // 检查是否为商品页面
