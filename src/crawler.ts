@@ -6,6 +6,7 @@ import { TaskConfig } from './types.js';
 import { UrlManager } from './urlManager.js';
 import { Utils } from './utils.js';
 import { ConfigManager } from './configManager.js';
+import { randomUUID } from 'crypto';
 
 export class ProductCrawler {
   private config: TaskConfig;
@@ -17,12 +18,16 @@ export class ProductCrawler {
   private cheerioProductCount: number = 0;
   private isCheerioRunCompleted: boolean = false;
   private shouldStop: boolean = false;
+  private uniqueQueueId: string;
+  private queueMonitorInterval: NodeJS.Timeout | null = null;
 
   constructor(config: TaskConfig) {
     this.config = config;
     this.urlManager = new UrlManager(config.id);
     this.processedCount = this.urlManager.getProcessedCount();
     this.visitedUrls = this.urlManager.getVisitedUrls();
+    // 为每个爬虫实例创建唯一的队列ID，避免多个爬虫共享队列
+    this.uniqueQueueId = `${config.id}-${randomUUID().substring(0, 8)}`;
   }
 
   async crawl(): Promise<void> {
@@ -32,8 +37,11 @@ export class ProductCrawler {
     console.log(`起始URL: ${this.config.startUrl}`);
     console.log(`并发线程数: ${this.config.threads}`);
 
-    // 初始化请求队列
-    this.requestQueue = await RequestQueue.open(this.config.id);
+    // 初始化请求队列，使用唯一的队列ID
+    this.requestQueue = await RequestQueue.open(this.uniqueQueueId);
+    
+    // 启动队列监控
+    this.startQueueMonitoring();
     
     // 检查是否是新任务，如果是则添加起始URL
     const head = await this.requestQueue.fetchNextRequest();
@@ -289,6 +297,93 @@ export class ProductCrawler {
     } finally {
       process.removeListener('SIGINT', stopHandler);
     }
+    
+    // 停止队列监控
+    this.stopQueueMonitoring();
+  }
+
+  // 启动队列监控
+  private startQueueMonitoring(): void {
+    this.queueMonitorInterval = setInterval(async () => {
+      if (this.requestQueue && !this.shouldStop) {
+        try {
+          // 检查队列状态
+          const head = await this.requestQueue.fetchNextRequest();
+          if (head) {
+            // 如果有请求但处理时间过长，可能卡住了
+            console.log(`队列 ${this.uniqueQueueId} 监控: 发现待处理请求 ${head.id}`);
+            
+            // 尝试恢复卡住的请求
+            await this.handleStuckRequest(head);
+          }
+        } catch (error) {
+          console.error(`队列 ${this.uniqueQueueId} 监控出错:`, error);
+          // 尝试重新初始化队列
+          await this.recoverQueue();
+        }
+      }
+    }, 15000); // 每15秒检查一次，更频繁的监控
+  }
+
+  // 处理卡住的请求
+  private async handleStuckRequest(request: any): Promise<void> {
+    try {
+      // 检查请求是否被锁定过久（超过2分钟）
+      const lockTimeout = 2 * 60 * 1000; // 2分钟
+      const now = Date.now();
+      
+      if (request.lockedAt && (now - new Date(request.lockedAt).getTime()) > lockTimeout) {
+        console.log(`队列 ${this.uniqueQueueId}: 请求 ${request.id} 被锁定过久，尝试重新处理`);
+        
+        // 重新添加请求到队列
+        await this.requestQueue!.addRequest({
+          url: request.url,
+          userData: request.userData
+        });
+        
+        console.log(`队列 ${this.uniqueQueueId}: 已重新添加请求 ${request.id}`);
+      }
+    } catch (error) {
+      console.error(`处理卡住请求 ${request.id} 时出错:`, error);
+    }
+  }
+
+  // 恢复队列
+  private async recoverQueue(): Promise<void> {
+    try {
+      console.log(`尝试恢复队列 ${this.uniqueQueueId}...`);
+      
+      // 重新打开队列
+      this.requestQueue = await RequestQueue.open(this.uniqueQueueId);
+      
+      // 检查是否有待处理的请求
+      const head = await this.requestQueue.fetchNextRequest();
+      if (!head) {
+        // 如果队列为空，重新添加起始URL
+        await this.requestQueue.addRequest({ url: this.config.startUrl });
+        console.log(`队列 ${this.uniqueQueueId}: 已重新初始化并添加起始URL`);
+      }
+    } catch (error) {
+      console.error(`恢复队列 ${this.uniqueQueueId} 时出错:`, error);
+    }
+  }
+
+  // 停止队列监控
+  private stopQueueMonitoring(): void {
+    if (this.queueMonitorInterval) {
+      clearInterval(this.queueMonitorInterval);
+      this.queueMonitorInterval = null;
+    }
+  }
+
+  // 获取任务ID（公共方法）
+  public getTaskId(): string {
+    return this.config.id;
+  }
+
+  // 获取唯一队列ID（公共方法）
+  public getUniqueQueueId(): string {
+    return this.uniqueQueueId;
   }
 
   private isProductPage($: any): boolean {

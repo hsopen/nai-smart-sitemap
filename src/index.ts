@@ -90,9 +90,24 @@ async function startTask(rl: any) {
         return crawler;
       });
 
-      // 同时启动所有爬虫
-      await Promise.all(crawlers.map(crawler => crawler.crawl()));
-      console.log('所有爬取任务已完成。');
+      console.log(`开始并发执行 ${crawlers.length} 个爬虫任务...`);
+      
+      // 使用更安全的并发控制，避免一个任务失败影响其他任务
+      const results = await Promise.allSettled(
+        crawlers.map(crawler => crawler.crawl())
+      );
+      
+      // 检查结果并报告任何失败的任务
+      let failedCount = 0;
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`任务 ${crawlers[index].getTaskId()} 失败:`, result.reason);
+          failedCount++;
+        }
+      });
+      
+      const successCount = crawlers.length - failedCount;
+      console.log(`爬取任务完成: ${successCount} 成功, ${failedCount} 失败`);
     } catch (error) {
       console.error('爬取出错:', error);
     } finally {
