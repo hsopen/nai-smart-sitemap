@@ -10,7 +10,7 @@ import { generateSitemap } from './sitemapGenerator.js';
 // 设置环境变量以使用内存存储而不是文件系统存储
 process.env.CRAWLEE_STORAGE_DIR = '';
 
-let currentCrawler: any = null;
+let currentCrawlers: ProductCrawler[] = [];
 
 async function main() {
   const rl = createInterface({
@@ -56,38 +56,47 @@ async function startTask(rl: any) {
     console.log(`${index + 1}. ${config.id} - ${config.startUrl}`);
   });
 
-  rl.question('请输入任务编号以选择任务: ', async (answer: string) => {
-    const selectedIndex = parseInt(answer) - 1;
+  rl.question('请输入任务编号以选择任务(多个任务用逗号分隔): ', async (answer: string) => {
+    const selectedIndices = answer.split(',').map(s => parseInt(s.trim()) - 1);
 
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= configs.length) {
+    const validIndices = selectedIndices.filter(index => 
+      !isNaN(index) && index >= 0 && index < configs.length
+    );
+
+    if (validIndices.length === 0) {
       console.log('无效的选择。');
       rl.close();
       return;
     }
 
-    const selectedConfig = configs[selectedIndex];
-    console.log(`正在启动任务: ${selectedConfig.id}`);
-
-    const crawler = new ProductCrawler(selectedConfig);
-    currentCrawler = crawler;
-    
     // 处理 Ctrl+C 信号
     const sigintHandler = () => {
-      console.log('\n接收到中断信号，正在停止...');
-      // 这里可以添加更具体的停止逻辑
+      console.log('\n接收到中断信号，正在停止所有爬虫...');
+      currentCrawlers.forEach(crawler => {
+        // 这里可以添加更具体的停止逻辑
+      });
       process.exit(0);
     };
     
     process.on('SIGINT', sigintHandler);
 
     try {
-      await crawler.crawl();
-      console.log('爬取已完成。');
+      const promises = validIndices.map(async index => {
+        const selectedConfig = configs[index];
+        console.log(`正在启动任务: ${selectedConfig.id}`);
+        
+        const crawler = new ProductCrawler(selectedConfig);
+        currentCrawlers.push(crawler);
+        return crawler.crawl();
+      });
+      
+      await Promise.all(promises);
+      console.log('所有爬取任务已完成。');
     } catch (error) {
       console.error('爬取出错:', error);
     } finally {
       process.removeListener('SIGINT', sigintHandler);
-      currentCrawler = null;
+      currentCrawlers = [];
       rl.close();
     }
   });
