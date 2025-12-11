@@ -81,16 +81,17 @@ async function startTask(rl: any) {
     process.on('SIGINT', sigintHandler);
 
     try {
-      const promises = validIndices.map(async index => {
+      // 并发执行所有选择的任务
+      const crawlers = validIndices.map(index => {
         const selectedConfig = configs[index];
         console.log(`正在启动任务: ${selectedConfig.id}`);
-        
         const crawler = new ProductCrawler(selectedConfig);
         currentCrawlers.push(crawler);
-        return crawler.crawl();
+        return crawler;
       });
-      
-      await Promise.all(promises);
+
+      // 同时启动所有爬虫
+      await Promise.all(crawlers.map(crawler => crawler.crawl()));
       console.log('所有爬取任务已完成。');
     } catch (error) {
       console.error('爬取出错:', error);

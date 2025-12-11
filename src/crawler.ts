@@ -30,6 +30,7 @@ export class ProductCrawler {
     console.log(`模式: ${this.config.mode}`);
     console.log(`最大商品数: ${this.config.maxProducts}`);
     console.log(`起始URL: ${this.config.startUrl}`);
+    console.log(`并发线程数: ${this.config.threads}`);
 
     // 初始化请求队列
     this.requestQueue = await RequestQueue.open(this.config.id);
@@ -61,7 +62,7 @@ export class ProductCrawler {
     try {
       crawler = new CheerioCrawler({
         requestQueue: this.requestQueue!,
-        maxConcurrency: this.config.threads,
+        maxConcurrency: this.config.threads, // 使用配置的线程数
         maxRequestRetries: 3,
         requestHandler: async ({ $, request }) => {
           if (this.shouldStop) {
@@ -151,7 +152,7 @@ export class ProductCrawler {
     try {
       crawler = new PlaywrightCrawler({
         requestQueue: this.requestQueue!,
-        maxConcurrency: this.config.threads,
+        maxConcurrency: this.config.threads, // 使用配置的线程数
         maxRequestRetries: 2, // 减少重试次数
         launchContext: {
           launcher: patchright.chromium, // 使用chromium而不是default
