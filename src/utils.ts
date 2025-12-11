@@ -46,18 +46,15 @@ export class Utils {
         fs.mkdirSync(outputDir, { recursive: true });
       }
 
-      // 在HTML中添加原始URL的元标签，以便后续生成网站地图时使用
-      const htmlWithMeta = html.replace(
-        '<head>',
-        `<head>\n  <meta name="original-url" content="${url}">`
-      );
+      // 在HTML中添加原始URL的注释
+      const htmlWithComment = `<!-- Original URL: ${url} -->\n${html}`;
 
-      // 生成文件名（六位数字，前导零填充）
+      // 生成文件名（七位数字，前导零填充）
       const fileName = `${index.toString().padStart(7, '0')}.txt`;
       const filePath = path.join(outputDir, fileName);
 
       // 保存文件
-      fs.writeFileSync(filePath, htmlWithMeta);
+      fs.writeFileSync(filePath, htmlWithComment);
       return true;
     } catch (error) {
       console.error(`保存文件失败 ${url}:`, error);

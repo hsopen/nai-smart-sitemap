@@ -19,15 +19,7 @@ async function generateSitemap() {
       if (choice === 1) {
         await generateAllSitemaps(rl);
       } else if (choice === 2) {
-        rl.question('请输入站点域名 (例如: www.madison-reed.com): ', async (domain: string) => {
-          if (domain.trim()) {
-            await generateSiteSitemap(domain.trim());
-          } else {
-            console.log('域名不能为空。');
-          }
-          rl.close();
-        });
-        return;
+        await generateSiteSelection(rl);
       } else {
         console.log('无效的选项。');
         rl.close();
@@ -36,6 +28,44 @@ async function generateSitemap() {
       console.error('生成网站地图时出错:', error);
       rl.close();
     }
+  });
+}
+
+async function generateSiteSelection(rl: any) {
+  const outputDir = 'output';
+  if (!fs.existsSync(outputDir)) {
+    console.log('output目录不存在。');
+    rl.close();
+    return;
+  }
+
+  const sites = fs.readdirSync(outputDir).filter(file => 
+    fs.statSync(path.join(outputDir, file)).isDirectory()
+  );
+
+  if (sites.length === 0) {
+    console.log('未找到任何站点目录。');
+    rl.close();
+    return;
+  }
+
+  console.log('可用站点:');
+  sites.forEach((site, index) => {
+    console.log(`${index + 1}. ${site}`);
+  });
+
+  rl.question('请选择站点编号: ', async (siteIndex: string) => {
+    const selectedIndex = parseInt(siteIndex) - 1;
+    
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= sites.length) {
+      console.log('无效的站点编号。');
+      rl.close();
+      return;
+    }
+    
+    const selectedSite = sites[selectedIndex];
+    await generateSiteSitemap(selectedSite);
+    rl.close();
   });
 }
 
@@ -94,8 +124,8 @@ async function generateSiteSitemap(domain: string) {
       const filePath = path.join(siteOutputDir, file);
       const content = fs.readFileSync(filePath, 'utf-8');
       
-      // 尝试从文件内容中提取原始URL
-      const urlMatch = content.match(/<meta[^>]*name=["']original-url["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+      // 尝试从文件内容中提取原始URL（注释格式）
+      const urlMatch = content.match(/<!--\s*Original URL:\s*(https?:\/\/[^\s]+)\s*-->/i);
       if (urlMatch && urlMatch[1]) {
         urls.add(urlMatch[1]);
       }
