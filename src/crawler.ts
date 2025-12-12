@@ -34,7 +34,10 @@ export class ProductCrawler {
     console.log(`开始执行爬取任务 ${this.config.id}`);
     console.log(`模式: ${this.config.mode}`);
     console.log(`最大商品数: ${this.config.maxProducts}`);
-    console.log(`起始URL: ${this.config.startUrl}`);
+    
+    // 处理单个或多个起始URL
+    const startUrls = Array.isArray(this.config.startUrl) ? this.config.startUrl : [this.config.startUrl];
+    console.log(`起始URL: ${startUrls.join(', ')}`);
     console.log(`并发线程数: ${this.config.threads}`);
 
     // 初始化请求队列，使用唯一的队列ID
@@ -47,7 +50,9 @@ export class ProductCrawler {
     const head = await this.requestQueue.fetchNextRequest();
     if (!head) {
       // 添加起始URL到队列
-      await this.requestQueue.addRequest({ url: this.config.startUrl });
+      for (const url of startUrls) {
+        await this.requestQueue.addRequest({ url });
+      }
     }
 
     if (this.config.mode === 'cheerio') {
@@ -360,7 +365,10 @@ export class ProductCrawler {
       const head = await this.requestQueue.fetchNextRequest();
       if (!head) {
         // 如果队列为空，重新添加起始URL
-        await this.requestQueue.addRequest({ url: this.config.startUrl });
+        const startUrls = Array.isArray(this.config.startUrl) ? this.config.startUrl : [this.config.startUrl];
+        for (const url of startUrls) {
+          await this.requestQueue.addRequest({ url });
+        }
         console.log(`队列 ${this.uniqueQueueId}: 已重新初始化并添加起始URL`);
       }
     } catch (error) {

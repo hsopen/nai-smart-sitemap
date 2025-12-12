@@ -1,7 +1,7 @@
 export interface TaskConfig {
   id: string;
   maxProducts: number;
-  startUrl: string;
+  startUrl: string | string[];
   threads: number;
   proxies: string[];
   selectors: string[];
